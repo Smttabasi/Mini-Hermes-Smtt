@@ -1,0 +1,25 @@
+{
+  "name": "hermes-mini",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "vars": {
+    "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "REMINDER_HOUR": "8"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hermes-mini",
+      "database_id": "e97ecd22-5936-4531-8418-d73794ff243f"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
