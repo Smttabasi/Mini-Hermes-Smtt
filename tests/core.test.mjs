@@ -134,6 +134,26 @@ test('webhook answers a Persian list request with fenced JSON from the model', a
   assert.match(sent[0].text, /برای امروز کاری ثبت نشده/);
 }));
 
+test('daily progress uses only today’s tasks and never calls AI or changes tasks', async () => withTelegram(async sent => {
+  const { env, request, sqlite, calls } = setup();
+  assert.equal((await worker.fetch(request(1, 'نبض امروز'), env)).status, 200);
+  assert.match(sent[0].text, /برای امروز کاری ثبت نشده/);
+  const insert = sqlite.prepare('INSERT INTO tasks (text, day, done, created_at) VALUES (?, ?, ?, ?)');
+  const now = new Date();
+  insert.run('یک کار انجام شده', tehranDay(now), 1, now.getTime());
+  insert.run('یک کار باقی مانده', tehranDay(now), 0, now.getTime());
+  insert.run('کار روز دیگر', '2000-01-01', 0, now.getTime());
+  const before = sqlite.prepare('SELECT * FROM tasks ORDER BY id').all();
+  assert.equal((await worker.fetch(request(2, 'چند تا كار مونده؟'), env)).status, 200);
+  assert.equal((await worker.fetch(request(2, 'چند تا كار مونده؟'), env)).status, 200);
+  assert.match(sent[1].text, /🟩🟩🟩🟩🟩⬜⬜⬜⬜⬜/);
+  assert.match(sent[1].text, /۱ از ۲ کار انجام شده \(۵۰٪\)/);
+  assert.match(sent[1].text, /۱ کار باقی مانده/);
+  assert.equal(sent.length, 2);
+  assert.equal(calls.length, 0);
+  assert.deepEqual(sqlite.prepare('SELECT * FROM tasks ORDER BY id').all(), before);
+}));
+
 test('invalid model output causes no task mutation', async () => withTelegram(async sent => {
   const { env, request, output, sqlite } = setup();
   output('not JSON');

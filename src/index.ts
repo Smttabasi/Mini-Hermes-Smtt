@@ -113,6 +113,23 @@ function listText(tasks: Task[], day: string): string {
   return `📅 ${day}\n${tasks.map((t, i) => `${i + 1}. ${t.done ? '✅' : '⬜'} ${t.text}`).join('\n')}`;
 }
 
+function isProgressRequest(input: string): boolean {
+  const phrase = input.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک')
+    .replace(/\u200c/g, ' ').replace(/\s+/g, ' ').replace(/[؟?!.]+$/, '').trim();
+  return ['نبض امروز', 'پیشرفت امروز', 'پیشرفت امروز را نشان بده', 'چند تا کار مونده'].includes(phrase);
+}
+
+function progressText(tasks: Task[]): string {
+  if (!tasks.length) return '📊 نبض امروز\nبرای امروز کاری ثبت نشده.';
+  const done = tasks.filter(task => task.done === 1).length;
+  const remaining = tasks.length - done;
+  const filled = Math.floor(10 * done / tasks.length);
+  const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
+  const number = new Intl.NumberFormat('fa-IR', { useGrouping: false });
+  const percent = new Intl.NumberFormat('fa-IR', { style: 'percent', maximumFractionDigits: 0 });
+  return `📊 نبض امروز\n${bar}\n${number.format(done)} از ${number.format(tasks.length)} کار انجام شده (${percent.format(done / tasks.length)})\n${number.format(remaining)} کار باقی مانده.`;
+}
+
 async function send(env: Env, chatId: number, text: string): Promise<void> {
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -160,6 +177,7 @@ async function processText(env: Env, updateId: number, userId: number, chatId: n
     let reply = FALLBACK;
     if (input.length > 1500) reply = 'پیامت خیلی طولانی است؛ لطفاً حداکثر ۱۵۰۰ نویسه بفرست.';
     else if (tasks.length > 50) reply = 'تعداد کارهای امروز بیش از ظرفیت این نسخه است؛ فعلاً هیچ تغییری انجام ندادم.';
+    else if (isProgressRequest(input)) reply = progressText(tasks);
     else action = await infer(env, input, tasks, memory, day);
 
     // Every mutation is guarded by the same lease, and committed in one D1 batch.
